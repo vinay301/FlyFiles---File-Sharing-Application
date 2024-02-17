@@ -6,10 +6,15 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { getFirestore, doc, setDoc } from "firebase/firestore";
 import { useUser } from '@clerk/nextjs';
 import { generateRandomString } from '@/app/_utils/GenerateRandomString';
+import { useRouter } from 'next/navigation';
+import CompletedCheck from './_components/CompletedCheck';
+
 const Upload = () => {
   const {user} = useUser();
   const [progress, setProgress] = useState()
   const [uploadCompleted,setUploadCompleted] = useState(false)
+  const [fileDocId, setFileDocId] = useState();
+  const router = useRouter();
   //get storage instance
   const storage = getStorage(app)
   // Initialize Cloud Firestore and get a reference to the service
@@ -43,7 +48,7 @@ const Upload = () => {
 
   const saveInfo = async(file,fileUrl) =>{
     // Add a new document in collection "uploadedFiles"
-    const docId = generateRandomString().toString()
+    const docId = generateRandomString().toString();
     await setDoc(doc(db, "uploadedFiles",docId), {
       fileName: file?.name,
       fileSize: file?.size,
@@ -52,36 +57,40 @@ const Upload = () => {
       userEmail : user?.primaryEmailAddress.emailAddress,
       userName : user?.fullName,
       password : '',
-      fileId : docId,
+      id : docId,
       shortUrl : process.env.NEXT_PUBLIC_BASE_URL+docId
 });
-
-
+  setFileDocId(docId);
   }
 
   useEffect(()=>{
     console.log("Trigger")
     progress == 100&& setTimeout(()=>{
       setUploadCompleted(true);
-    },2000)
+    },2000);
   }, [progress==100]);
 
   useEffect(()=>{
     uploadCompleted && 
     setTimeout(() => {
       setUploadCompleted(false);
-      window.location.reload();
-    },2000)
-  }, [uploadCompleted == true])
+      router.push('/file-preview/' + fileDocId);
+    },2000);
+  }, [uploadCompleted==true]);
+
+
 
   return (
-    <div className='p-5 px-8 md:px-28'>
+    <div className='p-5 px-8 md:px-28 text-center'>
+      {!uploadCompleted?<div>
       <h2 className='text-[20px] text-center m-5'>Start  
         <strong className="text-primary"> Uploading</strong> File &
         <strong className="text-primary"> Share</strong> It.
       </h2>
       <UploadForm uploadBtnClick={(file)=>uploadFile(file)}
       progress={progress}/>
+      </div>:
+      <CompletedCheck/> }
     </div>
   )
 }
